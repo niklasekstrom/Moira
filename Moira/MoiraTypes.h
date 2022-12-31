@@ -23,6 +23,7 @@ typedef uint8_t            u8;
 typedef uint16_t           u16;
 typedef uint32_t           u32;
 typedef unsigned long long u64;
+typedef uint32_t           future;
 
 typedef enum
 {
@@ -285,6 +286,30 @@ struct PrefetchQueue {    // http://pasti.fxatari.com/68kdocs/68kPrefetch.html
 
     u16 irc;              // The most recent word prefetched from memory
     u16 ird;              // The instruction currently being executed
+};
+
+typedef enum {
+    FK_NONE,
+    FK_COMPLETED,
+    FK_ACCESS_SLOT,
+    FK_COMBINE_DOUBLE_WORD,
+} FutureKind;
+
+struct FutureSlot {
+    u32 value;
+    u8 kind;
+    u8 accessSlot;
+    u8 fuHi;
+    u8 fuLo;
+};
+
+struct AccessSlot {
+    u32 address;
+    u32 data;
+    u8 rw;
+    u8 size;
+    u8 state;
+    u8 pad;
 };
 
 /* Execution flags

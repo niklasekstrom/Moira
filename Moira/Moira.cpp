@@ -432,6 +432,36 @@ Moira::getInfo(u16 op)
     return info[op];    
 }
 
+future
+Moira::createCompletedFuture(u32 value)
+{
+    future fu = nextFutureSlot;
+    nextFutureSlot = (nextFutureSlot + 1) & (FUTURE_SLOT_COUNT - 1);
+    FutureSlot *slot = &futureSlots[fu];
+    slot->kind = FK_COMPLETED;
+    slot->value = value;
+    return fu;
+}
+
+u32
+Moira::getFutureValue(future fu)
+{
+    FutureSlot *slot = &futureSlots[fu];
+    if (slot->kind == FK_COMPLETED) {
+        return slot->value;
+    } else if (slot->kind == FK_COMBINE_DOUBLE_WORD) {
+        u32 hi = getFutureValue(slot->fuHi);
+        u32 lo = getFutureValue(slot->fuLo);
+        u32 value = (hi << 16) | lo;
+        return value;
+    } else if (slot->kind == FK_ACCESS_SLOT) {
+        // TODO: Implement working access slots.
+        assert(false);
+    } else {
+        assert(false);
+    }
+}
+
 template u32 Moira::readD <Long> (int n) const;
 template u32 Moira::readA <Long> (int n) const;
 template void Moira::writeD <Long> (int n, u32 v);

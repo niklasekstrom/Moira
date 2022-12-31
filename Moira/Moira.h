@@ -135,6 +135,21 @@ private:
     // Table holding instruction infos
     InstrInfo *info = nullptr;
 
+public:
+
+    // Access slots
+#define ACCESS_SLOT_COUNT   16
+    AccessSlot accessSlots[ACCESS_SLOT_COUNT];
+    int accessSlotHead;
+    int accessSlotTail;
+
+    // Future slots
+#define FUTURE_SLOT_COUNT   64
+    FutureSlot futureSlots[FUTURE_SLOT_COUNT];
+    int nextFutureSlot;
+
+    future createCompletedFuture(u32 value);
+    u32 getFutureValue(future fu);
 
     //
     // Constructing

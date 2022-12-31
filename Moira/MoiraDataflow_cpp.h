@@ -19,13 +19,13 @@ Moira::readOp(int n, u32 &ea, future &resultFu)
         case MODE_AN: result = readA<S>(n); break;
         case MODE_IM: result = readI<S>();  break;
             
-        default:
+        default: {
             
             // Compute effective address
             ea = computeEA<M,S,F>(n);
 
             // Read from effective address
-            bool error; result = readM<M,S,F>(ea, error);
+            bool error; resultFu = readM<M,S,F>(ea, error);
 
             // Emulate -(An) register modification
             updateAnPD<M,S>(n);
@@ -36,7 +36,8 @@ Moira::readOp(int n, u32 &ea, future &resultFu)
             // Emulate (An)+ register modification
             updateAnPI<M,S>(n);
             
-            break;
+            return true;
+        }
     }
 
     resultFu = createCompletedFuture(result);
@@ -218,7 +219,7 @@ Moira::updateAn(int n)
     if constexpr (M == 4) reg.a[n] -= (n == 7 && S == Byte) ? 2 : S;
 }
 
-template<Mode M, Size S, Flags F> u32
+template<Mode M, Size S, Flags F> future
 Moira::readM(u32 addr, bool &error)
 {
     if (isPrgMode(M)) {
@@ -228,7 +229,7 @@ Moira::readM(u32 addr, bool &error)
     }
 }
 
-template<Mode M, Size S, Flags F> u32
+template<Mode M, Size S, Flags F> future
 Moira::readM(u32 addr)
 {
     if (isPrgMode(M)) {
@@ -238,7 +239,7 @@ Moira::readM(u32 addr)
     }
 }
 
-template<MemSpace MS, Size S, Flags F> u32
+template<MemSpace MS, Size S, Flags F> future
 Moira::readMS(u32 addr, bool &error)
 {
     // Check for address errors
@@ -252,16 +253,20 @@ Moira::readMS(u32 addr, bool &error)
     return readMS <MS,S,F> (addr);
 }
 
-template<MemSpace MS, Size S, Flags F> u32
+template<MemSpace MS, Size S, Flags F> future
 Moira::readMS(u32 addr)
 {
-    u32 result;
+    u32 resultFu;
         
     if constexpr (S == Long) {
 
         // Break down the long word access into two word accesses
-        result = readMS <MS, Word> (addr) << 16;
-        result |= readMS <MS, Word, F> (addr + 2);
+        resultFu = nextFutureSlot;
+        nextFutureSlot = (nextFutureSlot + 1) & (FUTURE_SLOT_COUNT - 1);
+        FutureSlot *slot = &futureSlots[resultFu];
+        slot->kind = FK_COMBINE_DOUBLE_WORD;
+        slot->fuHi = readMS <MS, Word> (addr);
+        slot->fuLo = readMS <MS, Word, F> (addr + 2);
 
     } else {
         
@@ -276,11 +281,13 @@ Moira::readMS(u32 addr)
         // Perform the read operation
         sync(2);
         if (F & POLLIPL) pollIpl();
+        u32 result;
         result = (S == Byte) ? read8(addr & 0xFFFFFF) : read16(addr & 0xFFFFFF);
+        resultFu = createCompletedFuture(result);
         sync(2);
     }
     
-    return result;
+    return resultFu;
 }
 
 template<Mode M, Size S, Flags F> void
@@ -453,7 +460,8 @@ Moira::prefetch()
     reg.pc0 = reg.pc;
     
     queue.ird = queue.irc;
-    queue.irc = (u16)readMS <MEM_PROG, Word, F> (reg.pc + 2);
+    future fu = readMS <MEM_PROG, Word, F> (reg.pc + 2);
+    queue.irc = (u16)getFutureValue(fu);
 }
 
 template<Flags F, int delay> void
@@ -465,7 +473,8 @@ Moira::fullPrefetch()
         return;
     }
 
-    queue.irc = (u16)readMS <MEM_PROG, Word> (reg.pc);
+    future fu = readMS <MEM_PROG, Word> (reg.pc);
+    queue.irc = (u16)getFutureValue(fu);
     if (delay) sync(delay);
     prefetch<F>();
 }
@@ -481,7 +490,8 @@ Moira::readExt()
         return;
     }
     
-    queue.irc = (u16)readMS <MEM_PROG, Word> (reg.pc);
+    future fu = readMS <MEM_PROG, Word> (reg.pc);
+    queue.irc = (u16)getFutureValue(fu);
 }
 
 template<Flags F> void
@@ -492,7 +502,8 @@ Moira::jumpToVector(int nr)
     exception = nr;
     
     // Update the program counter
-    reg.pc = readMS <MEM_DATA, Long> (vectorAddr);
+    future fu = readMS <MEM_DATA, Long> (vectorAddr);
+    reg.pc = getFutureValue(fu);
     
     // Check for address error
     if (misaligned(reg.pc)) {
@@ -505,7 +516,8 @@ Moira::jumpToVector(int nr)
     }
     
     // Update the prefetch queue
-    queue.irc = (u16)readMS <MEM_PROG, Word> (reg.pc);
+    future fu2 = readMS <MEM_PROG, Word> (reg.pc);
+    queue.irc = (u16)getFutureValue(fu2);
     sync(2);
     prefetch<POLLIPL>();
     

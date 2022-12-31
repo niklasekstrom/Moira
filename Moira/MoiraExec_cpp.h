@@ -915,7 +915,8 @@ Moira::execJsr(u16 opcode)
     auto oldpc = reg.pc;
     reg.pc = ea;
 
-    queue.irc = (u16)readMS <MEM_PROG, Word> (ea);
+    future fu = readMS <MEM_PROG, Word> (ea);
+    queue.irc = (u16)getFutureValue(fu);
     prefetch<POLLIPL>();
 
     signalJsrBsrInstr(opcode, oldpc, reg.pc);
@@ -1341,7 +1342,8 @@ Moira::execMovemEaRg(u16 opcode)
             for(int i = 0; i <= 15; i++) {
 
                 if (mask & (1 << i)) {
-                    writeR(i, SEXT<S>(readM<M,S>(ea)));
+                    future fu = readM<M,S>(ea);
+                    writeR(i, SEXT<S>(getFutureValue(fu)));
                     ea += S;
                 }
             }
@@ -1353,7 +1355,8 @@ Moira::execMovemEaRg(u16 opcode)
             for(int i = 0; i <= 15; i++) {
 
                 if (mask & (1 << i)) {
-                    writeR(i, SEXT<S>(readM<M,S>(ea)));
+                    future fu = readM<M,S>(ea);
+                    writeR(i, SEXT<S>(getFutureValue(fu)));
                     ea += S;
                 }
             }
@@ -1463,15 +1466,15 @@ Moira::execMovepEaDx(u16 opcode)
 
         case Long:
         {
-            dx |= readMS <MEM_DATA, Byte> (ea) << 24; ea += 2;
-            dx |= readMS <MEM_DATA, Byte> (ea) << 16; ea += 2;
+            dx |= getFutureValue(readMS <MEM_DATA, Byte> (ea)) << 24; ea += 2;
+            dx |= getFutureValue(readMS <MEM_DATA, Byte> (ea)) << 16; ea += 2;
 			[[fallthrough]];
         }
         case Word:
         {
-            dx |= readMS <MEM_DATA, Byte> (ea) << 8; ea += 2;
+            dx |= getFutureValue(readMS <MEM_DATA, Byte> (ea)) << 8; ea += 2;
             pollIpl();
-            dx |= readMS <MEM_DATA, Byte> (ea) << 0;
+            dx |= getFutureValue(readMS <MEM_DATA, Byte> (ea)) << 0;
         }
 
     }
@@ -1848,10 +1851,10 @@ Moira::execRte(u16 opcode)
 
     SUPERVISOR_MODE_ONLY
 
-    u16 newsr = (u16)readMS <MEM_DATA, Word> (reg.sp);
+    u16 newsr = (u16)getFutureValue(readMS <MEM_DATA, Word> (reg.sp));
     reg.sp += 2;
 
-    u32 newpc = readMS <MEM_DATA, Long> (reg.sp);
+    u32 newpc = getFutureValue(readMS <MEM_DATA, Long> (reg.sp));
     reg.sp += 4;
 
     setSR(newsr);
@@ -1872,12 +1875,13 @@ Moira::execRtr(u16 opcode)
     EXEC_DEBUG
 
     bool error;
-    u16 newccr = (u16)readM<M, Word>(reg.sp, error);
+    future fu = readM<M, Word>(reg.sp, error);
+    u16 newccr = (u16)getFutureValue(fu);
     if (error) return;
     
     reg.sp += 2;
 
-    u32 newpc = readMS <MEM_DATA, Long> (reg.sp);
+    u32 newpc = getFutureValue(readMS <MEM_DATA, Long> (reg.sp));
     reg.sp += 4;
     
     setCCR((u8)newccr);
@@ -1900,7 +1904,8 @@ Moira::execRts(u16 opcode)
     signalRtsInstr();
     
     bool error;
-    u32 newpc = readM<M, Long>(reg.sp, error);
+    future fu = readM<M, Long>(reg.sp, error);
+    u32 newpc = getFutureValue(fu);
     if (error) return;
  
     reg.sp += 4;

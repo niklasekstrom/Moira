@@ -148,6 +148,11 @@ public:
     FutureSlot futureSlots[FUTURE_SLOT_COUNT];
     int nextFutureSlot;
 
+    future getNextFutureSlot() {
+        future fu = nextFutureSlot;
+        nextFutureSlot = (nextFutureSlot + 1) & (FUTURE_SLOT_COUNT - 1);
+        return fu;
+    }
     future createCompletedFuture(u32 value);
     u32 getFutureValue(future fu);
 

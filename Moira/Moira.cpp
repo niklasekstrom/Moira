@@ -439,8 +439,7 @@ Moira::getInfo(u16 op)
 future
 Moira::createCompletedFuture(u32 value)
 {
-    future fu = nextFutureSlot;
-    nextFutureSlot = (nextFutureSlot + 1) & (FUTURE_SLOT_COUNT - 1);
+    future fu = getNextFutureSlot();
     FutureSlot *slot = &futureSlots[fu];
     slot->kind = FK_COMPLETED;
     slot->value = value;

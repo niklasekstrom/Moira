@@ -281,8 +281,7 @@ Moira::readMS(u32 addr)
     if constexpr (S == Long) {
 
         // Break down the long word access into two word accesses
-        resultFu = nextFutureSlot;
-        nextFutureSlot = (nextFutureSlot + 1) & (FUTURE_SLOT_COUNT - 1);
+        resultFu = getNextFutureSlot();
         FutureSlot *slot = &futureSlots[resultFu];
         slot->kind = FK_COMBINE_DOUBLE_WORD;
         slot->fuHi = readMS <MS, Word> (addr);

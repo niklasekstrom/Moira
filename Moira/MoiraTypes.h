@@ -303,10 +303,16 @@ struct FutureSlot {
     u8 fuLo;
 };
 
+typedef enum {
+    AS_INVALID,
+    AS_PENDING,
+    AS_COMPLETED,
+} AccessState;
+
 struct AccessSlot {
     u32 address;
     u32 data;
-    u8 rw;
+    u8 read;
     u8 size;
     u8 state;
     u8 pad;

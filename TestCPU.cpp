@@ -23,26 +23,68 @@ TestCPU::sync(int cycles)
     clock += cycles;
 }
 
-/* Reads a byte from memory.
- *
- * This function is called whenever the 68000 CPU reads a byte from memory.
- * It should emulate the read access including all side effects.
- */
 future
-TestCPU::read8(u32 addr)
+TestCPU::issueRead(u32 address, u8 size)
 {
-    return createCompletedFuture(get8(moiraMem, addr));
+    int tail = accessSlotTail;
+    accessSlotTail = (accessSlotTail + 1) & (ACCESS_SLOT_COUNT - 1);
+    AccessSlot *slot = &accessSlots[tail];
+    slot->address = address;
+    slot->size = size;
+    slot->read = 1;
+    slot->state = AS_PENDING;
+
+    submitAccesses();
+
+    future fu = getNextFutureSlot();
+    FutureSlot *fs = &futureSlots[fu];
+    fs->kind = FK_ACCESS_SLOT;
+    fs->accessSlot = tail;
+    return fu;
 }
 
-/* Reads a word from memory.
- *
- * This function is called whenever the 68000 CPU reads a word from memory.
- * It should emulate the read access including all side effects.
- */
-future
-TestCPU::read16(u32 addr)
+void
+TestCPU::issueWrite(u32 address, u32 data, u8 size)
 {
-    return createCompletedFuture(get16(moiraMem, addr));
+    int tail = accessSlotTail;
+    accessSlotTail = (accessSlotTail + 1) & (ACCESS_SLOT_COUNT - 1);
+    AccessSlot *slot = &accessSlots[tail];
+    slot->address = address;
+    slot->data = data;
+    slot->size = size;
+    slot->read = 0;
+    slot->state = AS_PENDING;
+
+    submitAccesses();
+}
+
+void
+TestCPU::submitAccesses()
+{
+    while (accessSlotHead != accessSlotTail) {
+        int head = accessSlotHead;
+        accessSlotHead = (accessSlotHead + 1) & (ACCESS_SLOT_COUNT - 1);
+        AccessSlot *slot = &accessSlots[head];
+        if (slot->read) {
+            if (slot->size == 1)
+                slot->data = get8(moiraMem, slot->address);
+            else if (slot->size == 2)
+                slot->data = get16(moiraMem, slot->address);
+        } else {
+            if (slot->size == 1)
+                set8(moiraMem, slot->address, slot->data);
+            else if (slot->size == 2)
+                set16(moiraMem, slot->address, slot->data);
+        }
+        slot->state = AS_COMPLETED;
+    }
+}
+
+u32
+TestCPU::getAccessSlotFutureValue(int accessSlot)
+{
+    // All accesses are already completed when this method is invoked
+    return accessSlots[accessSlot].data;
 }
 
 /* Reads a word from memory.
@@ -53,7 +95,7 @@ TestCPU::read16(u32 addr)
 u16
 TestCPU::read16Dasm(u32 addr)
 {
-    return get16(moiraMem, addr);
+    return (u16)getFutureValue(read16(addr));
 }
 
 /* Reads a word from memory.
@@ -70,7 +112,7 @@ TestCPU::read16OnReset(u32 addr)
         case 4: return 0x0000;
         case 6: return 0x1000;
     }
-    return get16(moiraMem, addr);
+    return (u16)getFutureValue(read16(addr));
 }
 
 /* Writes a byte into memory.
@@ -83,7 +125,7 @@ TestCPU::write8(u32 addr, u8  val)
 {
     if (CHECK_MEM_WRITES)
         sandbox.replayPoke(POKE8, addr, getClock(), readFC(), val);
-    set8(moiraMem, addr, val);
+    issueWrite(addr, val, 1);
 }
 
 /* Writes a word into memory.
@@ -96,7 +138,7 @@ TestCPU::write16 (u32 addr, u16 val)
 {
     if (CHECK_MEM_WRITES)
         sandbox.replayPoke(POKE16, addr, moiracpu->getClock(), readFC(), val);
-    set16(moiraMem, addr, val);
+    issueWrite(addr, val, 2);
 }
 
 /* Returns the interrupt vector in IRQ_USER mode

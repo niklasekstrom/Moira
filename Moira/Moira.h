@@ -138,7 +138,7 @@ private:
 public:
 
     // Access slots
-#define ACCESS_SLOT_COUNT   16
+#define ACCESS_SLOT_COUNT   64
     AccessSlot accessSlots[ACCESS_SLOT_COUNT];
     int accessSlotHead;
     int accessSlotTail;
@@ -231,6 +231,8 @@ protected:
     // Reads a byte or a word from memory
     virtual future read8(u32 addr) = 0;
     virtual future read16(u32 addr) = 0;
+
+    virtual u32 getAccessSlotFutureValue(int accessSlot) = 0;
 
     // Special variants used by the reset routine and the disassembler
     virtual u16 read16OnReset(u32 addr) { return getFutureValue(read16(addr)); }

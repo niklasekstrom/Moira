@@ -458,8 +458,7 @@ Moira::getFutureValue(future fu)
         u32 value = (hi << 16) | lo;
         return value;
     } else if (slot->kind == FK_ACCESS_SLOT) {
-        // TODO: Implement working access slots.
-        assert(false);
+        return getAccessSlotFutureValue(slot->accessSlot);
     } else {
         assert(false);
     }

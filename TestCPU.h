@@ -16,9 +16,15 @@ using namespace moira;
 
 class TestCPU : public Moira {
 
+    future issueRead(u32 address, u8 size);
+    void issueWrite(u32 address, u32 data, u8 size);
+
+    void submitAccesses();
+    u32 getAccessSlotFutureValue(int accessSlot) override;
+
     void sync(int cycles) override;
-    future read8(u32 addr) override;
-    future read16(u32 addr) override;
+    future read8(u32 addr) override { return issueRead(addr, 1); };
+    future read16(u32 addr) override { return issueRead(addr, 2); };
     u16 read16OnReset(u32 addr) override;
     u16 read16Dasm(u32 addr) override;
     void write8 (u32 addr, u8  val) override;

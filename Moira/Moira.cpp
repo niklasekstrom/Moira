@@ -70,7 +70,7 @@ Moira::reset()
 
     // Fill the prefetch queue
     sync(4);
-    queue.irc = read16OnReset(reg.pc & 0xFFFFFF);
+    queue.irc = createCompletedFuture(read16OnReset(reg.pc & 0xFFFFFF));
     sync(2);
     prefetch();
     
@@ -91,10 +91,13 @@ Moira::execute()
     // The quick execution path: Call the instruction handler and return
     //
 
+    u16 ird;
+
     if (!flags) {
 
         reg.pc += 2;
-        (this->*exec[queue.ird])(queue.ird);
+        ird = (u16)getFutureValue(queue.ird);
+        (this->*exec[ird])(ird);
         assert(reg.pc0 == reg.pc);
         return;
     }
@@ -149,7 +152,8 @@ Moira::execute()
 
     // Execute the instruction
     reg.pc += 2;
-    (this->*exec[queue.ird])(queue.ird);
+    ird = (u16)getFutureValue(queue.ird);
+    (this->*exec[ird])(ird);
     assert(reg.pc0 == reg.pc);
 
 done:

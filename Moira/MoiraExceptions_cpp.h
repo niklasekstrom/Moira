@@ -112,7 +112,7 @@ Moira::execLineA(u16 opcode)
         
         // Smuggle the original instruction back into the CPU
         reg.pc = reg.pc0;
-        queue.irc = trap.instruction;
+        queue.irc = createCompletedFuture(trap.instruction);
         prefetch();
         
         // Call the delegates
@@ -247,11 +247,11 @@ Moira::execIrqException(u8 level)
     writeMS <MEM_DATA, Word> (reg.sp + 4, reg.pc & 0xFFFF);
 
     sync(4);
-    queue.ird = getIrqVector(level);
+    queue.ird = createCompletedFuture(getIrqVector(level));
     
     sync(4);
     writeMS <MEM_DATA, Word> (reg.sp + 0, status);
     writeMS <MEM_DATA, Word> (reg.sp + 2, reg.pc >> 16);
 
-    jumpToVector<AE_SET_CB3>(queue.ird);
+    jumpToVector<AE_SET_CB3>(getFutureValue(queue.ird));
 }

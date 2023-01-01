@@ -465,7 +465,8 @@ Moira::execBcc(u16 opcode)
     sync(2);
     if (cond<I>()) {
 
-        u32 newpc = U32_ADD(reg.pc, S == Word ? (i16)queue.irc : (i8)opcode);
+        u16 irc = (u16)getFutureValue(queue.irc);
+        u32 newpc = U32_ADD(reg.pc, S == Word ? (i16)irc : (i8)opcode);
         
         // Check for address error
         if (misaligned<Word>(newpc)) {
@@ -568,7 +569,8 @@ Moira::execBsr(u16 opcode)
 {
     EXEC_DEBUG
     
-    i16 offset = S == Word ? (i16)queue.irc : (i8)opcode;
+    u16 irc = (u16)getFutureValue(queue.irc);
+    i16 offset = S == Word ? (i16)irc : (i8)opcode;
      
     u32 newpc = U32_ADD(reg.pc, offset);
     u32 retpc = U32_ADD(reg.pc, S == Word ? 2 : 0);
@@ -763,7 +765,8 @@ Moira::execDbcc(u16 opcode)
     if (!cond<I>()) {
 
         int dn = _____________xxx(opcode);
-        u32 newpc = U32_ADD(reg.pc, (i16)queue.irc);
+        u16 irc = (u16)getFutureValue(queue.irc);
+        u32 newpc = U32_ADD(reg.pc, (i16)irc);
         
         bool takeBranch = readD<Word>(dn) != 0;
         
@@ -915,8 +918,7 @@ Moira::execJsr(u16 opcode)
     auto oldpc = reg.pc;
     reg.pc = ea;
 
-    future fu = readMS <MEM_PROG, Word> (ea);
-    queue.irc = (u16)getFutureValue(fu);
+    queue.irc = readMS <MEM_PROG, Word> (ea);
     prefetch<POLLIPL>();
 
     signalJsrBsrInstr(opcode, oldpc, reg.pc);
@@ -1262,9 +1264,11 @@ Moira::execMove8(u16 opcode)
         reg.sr.v = 0;
         reg.sr.c = 0;
 
-        u32 ea2 = queue.irc << 16;
+        future ea2HiFu = queue.irc;
         readExt();
-        ea2 |= queue.irc;
+        future ea2LoFu = queue.irc;
+        u32 ea2 = getFutureValue(ea2HiFu) << 16;
+        ea2 |= getFutureValue(ea2LoFu);
 
         if (misaligned<S>(ea2)) {
             execAddressError(makeFrame<AE_WRITE|AE_DATA>(ea2));

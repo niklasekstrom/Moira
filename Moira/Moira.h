@@ -308,11 +308,11 @@ public:
     u32 getPC0() const { return reg.pc0; }
     void setPC0(u32 val) { reg.pc0 = val; }
 
-    u16 getIRC() const { return queue.irc; }
-    void setIRC(u16 val) { queue.irc = val; }
+    u16 getIRC() { return (u16)getFutureValue(queue.irc); }
+    void setIRC(u16 val) { queue.irc = createCompletedFuture(val); }
 
-    u16 getIRD() const { return queue.ird; }
-    void setIRD(u16 val) { queue.ird = val; }
+    u16 getIRD() { return (u16)getFutureValue(queue.ird); }
+    void setIRD(u16 val) { queue.ird = createCompletedFuture(val); }
 
     u8 getCCR() const { return getCCR(reg.sr); }
     void setCCR(u8 val);

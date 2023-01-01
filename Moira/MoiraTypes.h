@@ -284,8 +284,8 @@ struct Registers {
 
 struct PrefetchQueue {    // http://pasti.fxatari.com/68kdocs/68kPrefetch.html
 
-    u16 irc;              // The most recent word prefetched from memory
-    u16 ird;              // The instruction currently being executed
+    future irc;              // The most recent word prefetched from memory
+    future ird;              // The instruction currently being executed
 };
 
 typedef enum {

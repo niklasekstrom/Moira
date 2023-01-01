@@ -123,55 +123,75 @@ Moira::computeEA(u32 n) {
         }
         case 5: // (d,An)
         {
+            future ircFu = queue.irc;
+            if ((F & SKIP_LAST_READ) == 0) readExt();
+
             u32 an = readA(n);
-            i16  d = (i16)queue.irc;
+            u16 irc = (u16)getFutureValue(ircFu);
+            i16  d = (i16)irc;
             
             result = U32_ADD(an, d);
-            if ((F & SKIP_LAST_READ) == 0) readExt();
             break;
         }
         case 6: // (d,An,Xi)
         {
-            i8   d = (i8)queue.irc;
-            u32 an = readA(n);
-            u32 xi = readR((queue.irc >> 12) & 0b1111);
+            future ircFu = queue.irc;
+            if ((F & SKIP_LAST_READ) == 0) readExt();
 
-            result = U32_ADD3(an, d, ((queue.irc & 0x800) ? xi : SEXT<Word>(xi)));
+            u16 irc = (u16)getFutureValue(ircFu);
+            i8   d = (i8)irc;
+            u32 an = readA(n);
+            u32 xi = readR((irc >> 12) & 0b1111);
+
+            result = U32_ADD3(an, d, ((irc & 0x800) ? xi : SEXT<Word>(xi)));
 
             sync(2);
-            if ((F & SKIP_LAST_READ) == 0) readExt();
             break;
         }
         case 7: // ABS.W
         {
-            result = (i16)queue.irc;
+            future ircFu = queue.irc;
             if ((F & SKIP_LAST_READ) == 0) readExt();
+
+            u16 irc = (u16)getFutureValue(ircFu);
+            result = (i16)irc;
             break;
         }
         case 8: // ABS.L
         {
-            result = queue.irc << 16;
+            future hiFu = queue.irc;
             readExt();
-            result |= queue.irc;
+            future loFu = queue.irc;
             if ((F & SKIP_LAST_READ) == 0) readExt();
+
+            result = getFutureValue(hiFu) << 16;
+            result |= getFutureValue(loFu);
             break;
         }
         case 9: // (d,PC)
         {
-            i16  d = (i16)queue.irc;
-
-            result = U32_ADD(reg.pc, d);
+            future ircFu = queue.irc;
+            u32 oldPc = reg.pc;
             if ((F & SKIP_LAST_READ) == 0) readExt();
+
+            u16 irc = (u16)getFutureValue(ircFu);
+            i16  d = (i16)irc;
+
+            result = U32_ADD(oldPc, d);
             break;
         }
         case 10: // (d,PC,Xi)
         {
-            i8   d = (i8)queue.irc;
-            u32 xi = readR((queue.irc >> 12) & 0b1111);
-            
-            result = U32_ADD3(reg.pc, d, ((queue.irc & 0x800) ? xi : SEXT<Word>(xi)));
-            sync(2);
+            future ircFu = queue.irc;
+            u32 oldPc = reg.pc;
             if ((F & SKIP_LAST_READ) == 0) readExt();
+
+            u16 irc = (u16)getFutureValue(ircFu);
+            i8   d = (i8)irc;
+            u32 xi = readR((irc >> 12) & 0b1111);
+            
+            result = U32_ADD3(oldPc, d, ((irc & 0x800) ? xi : SEXT<Word>(xi)));
+            sync(2);
             break;
         }
         case 11: // Im
@@ -362,26 +382,29 @@ Moira::readI()
 
     switch (S) {
             
-        case Byte:
-            
-            result = (u8)queue.irc;
+        case Byte: {
+            future fu = queue.irc;
             readExt();
+            u16 irc = (u16)getFutureValue(fu);
+            result = (u8)irc;
             break;
-            
-        case Word:
-            
-            result = queue.irc;
+        }
+        case Word: {
+            future fu = queue.irc;
             readExt();
+            u16 irc = (u16)getFutureValue(fu);
+            result = irc;
             break;
-            
-        case Long:
-            
-            result = queue.irc << 16;
+        }
+        case Long: {
+            future hiFu = queue.irc;
             readExt();
-            result |= queue.irc;
+            future loFu = queue.irc;
             readExt();
+            result = getFutureValue(hiFu) << 16;
+            result |= getFutureValue(loFu);
             break;
-            
+        }
         default:
             fatalError;
     }
@@ -460,8 +483,7 @@ Moira::prefetch()
     reg.pc0 = reg.pc;
     
     queue.ird = queue.irc;
-    future fu = readMS <MEM_PROG, Word, F> (reg.pc + 2);
-    queue.irc = (u16)getFutureValue(fu);
+    queue.irc = readMS <MEM_PROG, Word, F> (reg.pc + 2);
 }
 
 template<Flags F, int delay> void
@@ -473,8 +495,7 @@ Moira::fullPrefetch()
         return;
     }
 
-    future fu = readMS <MEM_PROG, Word> (reg.pc);
-    queue.irc = (u16)getFutureValue(fu);
+    queue.irc = readMS <MEM_PROG, Word> (reg.pc);
     if (delay) sync(delay);
     prefetch<F>();
 }
@@ -490,8 +511,7 @@ Moira::readExt()
         return;
     }
     
-    future fu = readMS <MEM_PROG, Word> (reg.pc);
-    queue.irc = (u16)getFutureValue(fu);
+    queue.irc = readMS <MEM_PROG, Word> (reg.pc);
 }
 
 template<Flags F> void
@@ -516,8 +536,7 @@ Moira::jumpToVector(int nr)
     }
     
     // Update the prefetch queue
-    future fu2 = readMS <MEM_PROG, Word> (reg.pc);
-    queue.irc = (u16)getFutureValue(fu2);
+    queue.irc = readMS <MEM_PROG, Word> (reg.pc);
     sync(2);
     prefetch<POLLIPL>();
     

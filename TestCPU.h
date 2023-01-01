@@ -17,8 +17,8 @@ using namespace moira;
 class TestCPU : public Moira {
 
     void sync(int cycles) override;
-    u8 read8(u32 addr) override;
-    u16 read16(u32 addr) override;
+    future read8(u32 addr) override;
+    future read16(u32 addr) override;
     u16 read16OnReset(u32 addr) override;
     u16 read16Dasm(u32 addr) override;
     void write8 (u32 addr, u8  val) override;

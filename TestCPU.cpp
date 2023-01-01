@@ -28,10 +28,10 @@ TestCPU::sync(int cycles)
  * This function is called whenever the 68000 CPU reads a byte from memory.
  * It should emulate the read access including all side effects.
  */
-u8
+future
 TestCPU::read8(u32 addr)
 {
-    return get8(moiraMem, addr);
+    return createCompletedFuture(get8(moiraMem, addr));
 }
 
 /* Reads a word from memory.
@@ -39,10 +39,10 @@ TestCPU::read8(u32 addr)
  * This function is called whenever the 68000 CPU reads a word from memory.
  * It should emulate the read access including all side effects.
  */
-u16
+future
 TestCPU::read16(u32 addr)
 {
-    return get16(moiraMem, addr);
+    return createCompletedFuture(get16(moiraMem, addr));
 }
 
 /* Reads a word from memory.

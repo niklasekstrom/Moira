@@ -224,12 +224,12 @@ public:
 protected:
 
     // Reads a byte or a word from memory
-    virtual u8 read8(u32 addr) = 0;
-    virtual u16 read16(u32 addr) = 0;
+    virtual future read8(u32 addr) = 0;
+    virtual future read16(u32 addr) = 0;
 
     // Special variants used by the reset routine and the disassembler
-    virtual u16 read16OnReset(u32 addr) { return read16(addr); }
-    virtual u16 read16Dasm(u32 addr) { return read16(addr); }
+    virtual u16 read16OnReset(u32 addr) { return getFutureValue(read16(addr)); }
+    virtual u16 read16Dasm(u32 addr) { return getFutureValue(read16(addr)); }
 
     // Writes a byte or word into memory
     virtual void write8  (u32 addr, u8  val) = 0;

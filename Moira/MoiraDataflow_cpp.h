@@ -301,9 +301,10 @@ Moira::readMS(u32 addr)
         // Perform the read operation
         sync(2);
         if (F & POLLIPL) pollIpl();
-        u32 result;
-        result = (S == Byte) ? read8(addr & 0xFFFFFF) : read16(addr & 0xFFFFFF);
-        resultFu = createCompletedFuture(result);
+        if (S == Byte)
+            resultFu = read8(addr & 0xFFFFFF);
+        else
+            resultFu = read16(addr & 0xFFFFFF);
         sync(2);
     }
     

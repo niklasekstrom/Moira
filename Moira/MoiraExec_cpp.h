@@ -78,9 +78,10 @@ Moira::execShiftEa(u16 op)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
 
     writeM<M,S>(ea, shift<I,S>(1, data));
 }
@@ -110,14 +111,15 @@ Moira::execAbcd(u16 opcode)
             u32 ea1, ea2, data1, data2;
             future data1Fu;
             if (!readOp<M,S>(src, ea1, data1Fu)) return;
-            data1 = getFutureValue(data1Fu);
             pollIpl();
             future data2Fu;
             if (!readOp<M,S,IMPLICIT_DECR>(dst, ea2, data2Fu)) return;
-            data2 = getFutureValue(data2Fu);
 
-            u32 result = bcd<I, Byte>(data1, data2);
             prefetch();
+
+            data1 = getFutureValue(data1Fu);
+            data2 = getFutureValue(data2Fu);
+            u32 result = bcd<I, Byte>(data1, data2);
 
             writeM<M, Byte>(ea2, result);
             break;
@@ -137,10 +139,11 @@ Moira::execAddEaRg(u16 opcode)
     
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
-    
-    result = addsub<I,S>(data, readD<S>(dst));
+
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    result = addsub<I,S>(data, readD<S>(dst));
     
     if constexpr (S == Long) sync(2 + (isMemMode(M) ? 0 : 2));
     writeD<S>(dst, result);
@@ -158,10 +161,12 @@ Moira::execAddRgEa(u16 opcode)
 
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(dst, ea, dataFu)) return;
+
+    prefetch<POLLIPL>();
+
     data = getFutureValue(dataFu);
     result = addsub<I,S>(readD<S>(src), data);
 
-    prefetch<POLLIPL>();
     writeM <M, S> (ea, result);
 }
 
@@ -177,11 +182,13 @@ Moira::execAdda(u16 opcode)
 
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(src, ea, dataFu)) return;
+
+    prefetch<POLLIPL>();
+
     data = getFutureValue(dataFu);
     data = SEXT<S>(data);
     
     result = (I == ADDA) ? U32_ADD(readA(dst), data) : U32_SUB(readA(dst), data);
-    prefetch<POLLIPL>();
 
     sync(2);
     if constexpr (S == Word || isRegMode(M) || isImmMode(M)) sync(2);
@@ -199,10 +206,10 @@ Moira::execAddiRg(u16 opcode)
     u32 ea, data, result;
     future dataFu;
     if (!readOp<M,S>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
-
-    result = addsub<I,S>(src, data);
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    result = addsub<I,S>(src, data);
 
     if constexpr (S == Long) sync(4);
     writeD<S>(dst, result);
@@ -219,10 +226,11 @@ Moira::execAddiEa(u16 opcode)
     u32 ea, data, result;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    result = addsub<I,S>(src, data);
     prefetch();
+
+    data = getFutureValue(dataFu);
+    result = addsub<I,S>(src, data);
 
     writeOp<M,S, POLLIPL>(dst, ea, result);
 }
@@ -270,11 +278,12 @@ Moira::execAddqEa(u16 opcode)
     u32 ea, data, result;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
+    prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
     if (src == 0) src = 8;
     result = addsub<I,S>(src, data);
-    prefetch<POLLIPL>();
 
     writeOp<M,S>(dst, ea, result);
 }
@@ -312,7 +321,6 @@ Moira::execAddxEa(u16 opcode)
         if constexpr (S == Long) undoAnPD<M,S>(src);
         return;
     }
-    data1 = getFutureValue(data1Fu);
     if constexpr (S != Long) pollIpl();
         
     future data2Fu;
@@ -320,8 +328,9 @@ Moira::execAddxEa(u16 opcode)
         if constexpr (S == Long) undoAnPD<M,S>(dst);
         return;
     }
-    data2 = getFutureValue(data2Fu);
 
+    data1 = getFutureValue(data1Fu);
+    data2 = getFutureValue(data2Fu);
     u32 result = addsub<I,S>(data1, data2);
 
     if constexpr (S == Long && !MIMIC_MUSASHI) {
@@ -348,10 +357,11 @@ Moira::execAndEaRg(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    u32 result = logic<I,S>(data, readD<S>(dst));
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    u32 result = logic<I,S>(data, readD<S>(dst));
 
     if constexpr (S == Long) sync(isRegMode(M) || isImmMode(M) ? 4 : 2);
     writeD<S>(dst, result);
@@ -368,10 +378,11 @@ Moira::execAndRgEa(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    u32 result = logic<I,S>(readD<S>(src), data);
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    u32 result = logic<I,S>(readD<S>(src), data);
     
     if constexpr (S == Long && isRegMode(M)) sync(4);
     
@@ -409,10 +420,11 @@ Moira::execAndiEa(u16 opcode)
 
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    result = logic<I,S>(src, data);
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    result = logic<I,S>(src, data);
 
     if constexpr (MIMIC_MUSASHI) {
         writeOp <M,S> (dst, ea, result);
@@ -516,11 +528,12 @@ Moira::execBitDxEa(u16 opcode)
             u32 ea, data;
             future dataFu;
             if (!readOp<M, Byte>(dst, ea, dataFu)) return;
-            data = getFutureValue(dataFu);
-
-            data = bit<I>(data, b);
 
             prefetch<POLLIPL>();
+
+            data = getFutureValue(dataFu);
+            data = bit<I>(data, b);
+
             if (I != BTST) writeM<M, Byte>(ea, data);
         }
     }
@@ -554,11 +567,12 @@ Moira::execBitImEa(u16 opcode)
             u32 ea, data;
             future dataFu;
             if (!readOp<M,S>(dst, ea, dataFu)) return;
-            data = getFutureValue(dataFu);
-
-            data = bit<I>(data, src);
 
             prefetch<POLLIPL>();
+
+            data = getFutureValue(dataFu);
+            data = bit<I>(data, src);
+
             if (I != BTST) writeM <M, S> (ea, data);
         }
     }
@@ -675,10 +689,11 @@ Moira::execCmp(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    cmp<S>(data, readD<S>(dst));
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    cmp<S>(data, readD<S>(dst));
 
     if constexpr (S == Long) sync(2);
 }
@@ -694,11 +709,12 @@ Moira::execCmpa(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
+    prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
     data = SEXT<S>(data);
     cmp<Long>(data, readA(dst));
-    prefetch<POLLIPL>();
 
     sync(2);
 }
@@ -728,9 +744,10 @@ Moira::execCmpiEa(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
+
     prefetch<POLLIPL>();
 
+    data = getFutureValue(dataFu);
     cmp<S>(src, data);
 }
 
@@ -743,17 +760,17 @@ Moira::execCmpm(u16 opcode)
     int dst = ____xxx_________(opcode);
 
     u32 ea1, ea2, data1, data2;
-
     future data1Fu;
     if (!readOp<M,S, AE_INC_PC>(src, ea1, data1Fu)) return;
-    data1 = getFutureValue(data1Fu);
     pollIpl();
     future data2Fu;
     if (!readOp<M,S, AE_INC_PC>(dst, ea2, data2Fu)) return;
-    data2 = getFutureValue(data2Fu);
 
-    cmp<S>(data1, data2);
     prefetch();
+
+    data1 = getFutureValue(data1Fu);
+    data2 = getFutureValue(data2Fu);
+    cmp<S>(data1, data2);
 }
 
 template<Instr I, Mode M, Size S> void
@@ -1095,6 +1112,9 @@ Moira::execMove4(u16 opcode)
      */
     future dataFu;
     if (!readOp <M, S, STD_AE_FRAME> (src, ea, dataFu)) return;
+
+    prefetch <POLLIPL> ();
+
     data = getFutureValue(dataFu);
 
     // Determine next address error stack frame format
@@ -1107,8 +1127,6 @@ Moira::execMove4(u16 opcode)
     reg.sr.z = ZERO<S>(data);
     reg.sr.v = 0;
     reg.sr.c = 0;
-
-    prefetch <POLLIPL> ();
 
     ea = computeEA <MODE_PD, S, IMPLICIT_DECR> (dst);
     
@@ -1257,16 +1275,17 @@ Moira::execMove8(u16 opcode)
         
         future dataFu;
         if (!readOp <M,S, STD_AE_FRAME> (src, ea, dataFu)) return;
+
+        future ea2HiFu = queue.irc;
+        readExt();
+        future ea2LoFu = queue.irc;
+
         data = getFutureValue(dataFu);
-        
         reg.sr.n = NBIT<Word>(data);
         reg.sr.z = ZERO<Word>(data);
         reg.sr.v = 0;
         reg.sr.c = 0;
 
-        future ea2HiFu = queue.irc;
-        readExt();
-        future ea2LoFu = queue.irc;
         u32 ea2 = getFutureValue(ea2HiFu) << 16;
         ea2 |= getFutureValue(ea2LoFu);
 
@@ -1287,8 +1306,8 @@ Moira::execMove8(u16 opcode)
 
         future dataFu;
         if (!readOp <M,S> (src, ea, dataFu)) return;
-        data = getFutureValue(dataFu);
 
+        data = getFutureValue(dataFu);
         reg.sr.n = NBIT<S>(data);
         reg.sr.z = ZERO<S>(data);
         reg.sr.v = 0;
@@ -1311,9 +1330,11 @@ Moira::execMovea(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp <M,S, STD_AE_FRAME> (src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+
     writeA(dst, SEXT<S>(data));
 }
 
@@ -1339,6 +1360,8 @@ Moira::execMovemEaRg(u16 opcode)
     
     if constexpr (S == Long) (void)readMS <MEM_DATA, Word> (ea);
 
+    future fus[16];
+
     switch (M) {
 
         case 3: // (An)+
@@ -1346,9 +1369,14 @@ Moira::execMovemEaRg(u16 opcode)
             for(int i = 0; i <= 15; i++) {
 
                 if (mask & (1 << i)) {
-                    future fu = readM<M,S>(ea);
-                    writeR(i, SEXT<S>(getFutureValue(fu)));
+                    fus[i] = readM<M,S>(ea);
                     ea += S;
+                }
+            }
+            for(int i = 0; i <= 15; i++) {
+
+                if (mask & (1 << i)) {
+                    writeR(i, SEXT<S>(getFutureValue(fus[i])));
                 }
             }
             writeA(src, ea);
@@ -1359,9 +1387,14 @@ Moira::execMovemEaRg(u16 opcode)
             for(int i = 0; i <= 15; i++) {
 
                 if (mask & (1 << i)) {
-                    future fu = readM<M,S>(ea);
-                    writeR(i, SEXT<S>(getFutureValue(fu)));
+                    fus[i] = readM<M,S>(ea);
                     ea += S;
+                }
+            }
+            for(int i = 0; i <= 15; i++) {
+
+                if (mask & (1 << i)) {
+                    writeR(i, SEXT<S>(getFutureValue(fus[i])));
                 }
             }
             break;
@@ -1514,13 +1547,13 @@ Moira::execMoveToCcr(u16 opcode)
     
     future dataFu;
     if (!readOp <M,S, STD_AE_FRAME> (src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
-
-    sync(4);
-    setCCR((u8)data);
 
     (void)readMS <MEM_PROG, Word> (reg.pc + 2);
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    sync(4);
+    setCCR((u8)data);
 }
 
 template<Instr I, Mode M, Size S> void
@@ -1568,13 +1601,13 @@ Moira::execMoveToSr(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp <M,S, STD_AE_FRAME> (src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
-
-    sync(4);
-    setSR((u16)data);
 
     (void)readMS <MEM_PROG, Word> (reg.pc + 2);
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    sync(4);
+    setSR((u16)data);
 }
 
 template<Instr I, Mode M, Size S> void
@@ -1618,9 +1651,10 @@ Moira::execMul(u16 opcode)
 
     future dataFu;
     if (!readOp <M,Word, STD_AE_FRAME> (src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
     result = mul<I>(data, readD<Word>(dst));
     writeD(dst, result);
 }
@@ -1637,9 +1671,10 @@ Moira::execMulMusashi(u16 op)
 
     future dataFu;
     if (!readOp <M,Word> (src, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
     result = mulMusashi<I>(data, readD<Word>(dst));
 
     sync(50);
@@ -1739,8 +1774,8 @@ Moira::execNbcd(u16 opcode)
             u32 ea, data;
             future dataFu;
             if (!readOp<M, Byte>(reg, ea, dataFu)) return;
-            data = getFutureValue(dataFu);
             prefetch<POLLIPL>();
+            data = getFutureValue(dataFu);
             writeM<M, Byte>(ea, bcd <SBCD,Byte> (data, 0));
             break;
         }
@@ -1757,10 +1792,11 @@ Moira::execNegRg(u16 opcode)
 
     future dataFu;
     if (!readOp<M,S>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    data = logic<I,S>(data);
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    data = logic<I,S>(data);
 
     if constexpr (S == Long) sync(2);
     writeD<S>(dst, data);
@@ -1776,10 +1812,11 @@ Moira::execNegEa(u16 opcode)
 
     future dataFu;
     if (!readOp<M,S,STD_AE_FRAME>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
-    
-    data = logic<I,S>(data);
+
     prefetch <POLLIPL> ();
+
+    data = getFutureValue(dataFu);
+    data = logic<I,S>(data);
 
     if constexpr (MIMIC_MUSASHI) {
         writeOp <M,S> (dst, ea, data);
@@ -1879,8 +1916,7 @@ Moira::execRtr(u16 opcode)
     EXEC_DEBUG
 
     bool error;
-    future fu = readM<M, Word>(reg.sp, error);
-    u16 newccr = (u16)getFutureValue(fu);
+    u16 newccr = (u16)getFutureValue(readM<M, Word>(reg.sp, error));
     if (error) return;
     
     reg.sp += 2;
@@ -1908,8 +1944,7 @@ Moira::execRts(u16 opcode)
     signalRtsInstr();
     
     bool error;
-    future fu = readM<M, Long>(reg.sp, error);
-    u32 newpc = getFutureValue(fu);
+    u32 newpc = getFutureValue(readM<M, Long>(reg.sp, error));
     if (error) return;
  
     reg.sp += 4;
@@ -1933,10 +1968,11 @@ Moira::execSccRg(u16 opcode)
 
     future dataFu;
     if (!readOp<M,Byte>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    data = cond<I>() ? 0xFF : 0;
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    data = cond<I>() ? 0xFF : 0;
 
     if (data) sync(2);
     writeD<Byte>(dst, data);
@@ -1952,10 +1988,11 @@ Moira::execSccEa(u16 opcode)
 
     future dataFu;
     if (!readOp<M,Byte>(dst, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
-    data = cond<I>() ? 0xFF : 0;
     prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
+    data = cond<I>() ? 0xFF : 0;
 
     writeOp <M,Byte> (dst, ea, data);
 }
@@ -2083,14 +2120,14 @@ Moira::execTst(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<M,S, STD_AE_FRAME>(rg, ea, dataFu)) return;
-    data = getFutureValue(dataFu);
 
+    prefetch<POLLIPL>();
+
+    data = getFutureValue(dataFu);
     reg.sr.n = NBIT<S>(data);
     reg.sr.z = ZERO<S>(data);
     reg.sr.v = 0;
     reg.sr.c = 0;
-
-    prefetch<POLLIPL>();
 }
 
 template<Instr I, Mode M, Size S> void
@@ -2111,9 +2148,11 @@ Moira::execUnlk(u16 opcode)
     u32 ea, data;
     future dataFu;
     if (!readOp<MODE_AI, Long, AE_DATA|AE_INC_PC|POLLIPL>(7, ea, dataFu)) return;
+
+    prefetch();
+
     data = getFutureValue(dataFu);
     writeA(an, data);
 
     if (an != 7) reg.sp += 4;
-    prefetch();
 }
